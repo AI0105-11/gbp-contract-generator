@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>地圖商家優化合約 生成器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{ --gold:#b8924a; --ink:#1f2328; --line:#d9d2c4; --bg:#eceae4; --accent:#8a6d2f; }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",sans-serif;background:var(--bg);color:var(--ink);}
+  .topbar{position:sticky;top:0;z-index:20;background:#1f2328;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:12px 20px;flex-wrap:wrap;gap:8px;}
+  .topbar h1{font-size:16px;margin:0;font-weight:600;letter-spacing:.5px;}
+  .topbar .btns{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .topbar .tip{font-size:12px;color:#cdb87f;}
+  button{cursor:pointer;border:none;border-radius:6px;padding:9px 16px;font-size:14px;font-weight:600;font-family:inherit;}
+  .btn-primary{background:var(--gold);color:#fff;}
+  .btn-primary:hover{background:var(--accent);}
+  .btn-ghost{background:#3a3f46;color:#fff;}
+  .btn-ghost:hover{background:#4a505a;}
+  .layout{display:flex;gap:0;align-items:flex-start;}
+  .panel{width:40%;max-width:540px;padding:24px;height:calc(100vh - 50px);overflow-y:auto;background:#fbfaf7;border-right:1px solid var(--line);}
+  .preview-wrap{flex:1;padding:28px;height:calc(100vh - 50px);overflow-y:auto;background:#eceae4;}
+  @media(max-width:900px){.layout{flex-direction:column;}.panel{width:100%;max-width:none;height:auto;border-right:none;border-bottom:1px solid var(--line);}.preview-wrap{width:100%;height:auto;}}
+
+  /* ---- form ---- */
+  .field-group{margin-bottom:22px;}
+  .field-group > h2{font-size:14px;color:var(--accent);border-left:4px solid var(--gold);padding-left:10px;margin:0 0 14px;}
+  label{display:block;font-size:13px;font-weight:600;margin:0 0 4px;color:#444;}
+  input[type=text],input[type=date],select,textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:14px;font-family:inherit;background:#fff;}
+  input:focus,textarea:focus,select:focus{outline:none;border-color:var(--gold);}
+  .row{display:flex;gap:10px;}
+  .row > div{flex:1;}
+  .mb{margin-bottom:12px;}
+  .store-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+  .store-row input{flex:1;}
+  .store-row button{background:#c0524a;color:#fff;padding:6px 12px;border-radius:6px;font-size:13px;}
+  #addStore{background:#3a7d44;color:#fff;margin-top:4px;}
+  .total-box{background:#f1ead8;border:1px solid var(--gold);border-radius:8px;padding:12px 14px;margin-top:10px;font-size:14px;}
+  .total-box b{color:var(--accent);font-size:18px;}
+  .pay-opt{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:14px;font-weight:500;}
+  .pay-opt input{width:auto;}
+  .sig-pad-wrap{margin-bottom:14px;}
+  .sig-canvas{border:1px dashed var(--gold);border-radius:8px;background:#fff;width:100%;touch-action:none;cursor:crosshair;}
+  .sig-tools{display:flex;gap:8px;margin-top:6px;}
+  .sig-tools button{background:#6b7280;color:#fff;padding:5px 12px;font-size:12px;}
+  .hint{font-size:12px;color:#888;margin-top:4px;}
+
+  /* ================= 合約文件（黑框表格框架，仿原版 Word） ================= */
+  #contract{background:#fff;box-shadow:0 2px 16px rgba(0,0,0,.18);margin:0 auto;padding:38px 40px;max-width:820px;
+    font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif;font-size:13px;line-height:1.85;color:#000;}
+  .serif{font-family:"Noto Serif TC","PMingLiU",serif;}
+
+  /* 標題列 */
+  .doc-title-bar{border:1.4px solid #000;text-align:center;padding:15px 10px;}
+  .doc-title-bar .t{font-family:"Noto Serif TC",serif;font-weight:900;font-size:20px;letter-spacing:.5px;}
+
+  /* 主框架表格 */
+  table.frame{width:100%;border-collapse:collapse;}
+  table.frame > tbody > tr > td{border:1.4px solid #000;padding:9px 12px;vertical-align:top;}
+  td.lbl{width:64px;text-align:center;vertical-align:middle;font-weight:700;font-size:15px;
+    font-family:"Noto Serif TC",serif;letter-spacing:3px;background:#fafafa;line-height:1.4;}
+  .doc-title-bar + table.frame{border-top:none;}
+
+  /* 立約雙方：甲方｜乙方 兩欄並排 */
+  .party-grid{display:grid;grid-template-columns:1fr 1fr;}
+  .party-grid .pcol{padding:2px 14px;}
+  .party-grid .pcol:first-child{border-right:1px solid #000;padding-left:2px;}
+  .party-grid .pcol:last-child{padding-right:2px;}
+  .party-grid .pline{margin:5px 0;font-weight:500;}
+  .fill{border-bottom:1px solid #333;min-width:80px;display:inline-block;padding:0 5px;font-weight:600;color:#13315a;}
+
+  /* 服務項目：攤平為主表格的列（單層表格才能在列與列之間乾淨分頁，內容不會掉、不會亂） */
+  table.frame > tbody > tr{page-break-inside:avoid;break-inside:avoid;}
+  td.cat{width:30%;font-weight:700;background:#f7f7f7;line-height:1.8;}
+  table.frame ul{margin:0;padding-left:17px;}
+  table.frame li{margin:2px 0;line-height:1.8;}
+  .svc-intro{margin:0 0 4px;line-height:1.8;}
+  td.svc-lbl{border-top:none !important;border-bottom:none !important;}
+
+  /* 履約標的 */
+  .targets{display:grid;grid-template-columns:1fr 1fr;gap:12px 30px;}
+  .targets .t-item{white-space:nowrap;}
+  .targets .t-item .fill{min-width:140px;text-align:center;}
+
+  /* 專案優惠 */
+  .price-line{font-weight:700;font-size:15px;margin:8px 0;}
+
+  /* 付款方式 */
+  .pay-doc p{margin:5px 0;}
+  .pay-doc .box{display:inline-block;width:14px;height:14px;border:1.4px solid #000;margin-right:7px;text-align:center;line-height:12px;font-weight:700;vertical-align:-2px;font-size:11px;}
+  .pay-doc .box.checked{background:#000;color:#fff;}
+  .pay-doc .sub{padding-left:21px;}
+  .pay-doc .bull{padding-left:21px;}
+  .pay-sign{display:flex;gap:28px;margin-top:6px;flex-wrap:wrap;}
+
+  /* 條文 */
+  .clauses{margin-top:24px;}
+  .clauses h3{font-family:"Noto Serif TC",serif;font-size:15px;font-weight:700;margin:20px 0 8px;padding-bottom:4px;border-bottom:1.4px solid #000;page-break-after:avoid;break-after:avoid;}
+  .clauses p{margin:5px 0;page-break-inside:avoid;break-inside:avoid;}
+  .clauses .indent{padding-left:1.6em;}
+  .clauses .indent2{padding-left:3em;}
+
+  /* 簽署 */
+  .sign-wrap{margin-top:28px;border:1.4px solid #000;padding:18px 22px;page-break-inside:avoid;break-inside:avoid;}
+  .sign-wrap .sh{font-family:"Noto Serif TC",serif;font-weight:700;font-size:15px;margin:0 0 16px;}
+  .sign-area{display:flex;gap:40px;justify-content:space-between;}
+  .sign-block{flex:1;text-align:center;}
+  .sign-block .sig-img{height:72px;border-bottom:1px solid #000;margin-bottom:6px;display:flex;align-items:flex-end;justify-content:center;}
+  .sign-block .sig-img img{max-height:68px;max-width:100%;}
+  .sign-block .label{font-size:13px;font-weight:600;}
+  .muted{color:#888;}
+  .date-line{text-align:right;margin-top:16px;font-weight:500;}
+
+  /* 分頁保護：小區塊不被拆開 */
+  .no-split{page-break-inside:avoid;break-inside:avoid;}
+
+  /* ================= 列印（另存為 PDF）樣式 ================= */
+  @page{ size:A4; margin:14mm 12mm; }
+  @media print{
+    body{background:#fff;}
+    .topbar,.panel,.no-print{display:none !important;}
+    .layout{display:block;}
+    .preview-wrap{padding:0;height:auto;overflow:visible;background:#fff;}
+    #contract{box-shadow:none;margin:0;max-width:none;width:100%;padding:0;font-size:11.5px;line-height:1.7;}
+    .doc-title-bar .t{font-size:17px;}
+    .clauses h3{font-size:13px;}
+    .sign-wrap{margin-top:20px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar no-print">
+  <h1>📄 Google地圖商家優化合約 — 客戶資料填寫 / PDF 匯出</h1>
+  <div class="btns">
+    <span class="tip">匯出時請在「印表機」選「另存為 PDF」</span>
+    <button class="btn-primary" id="exportBtn">⬇ 匯出 / 列印 PDF</button>
+  </div>
+</div>
+
+<div class="layout">
+  <!-- ============ FORM PANEL ============ -->
+  <div class="panel no-print" id="formPanel">
+    <div class="field-group">
+      <h2>甲方（客戶）資料</h2>
+      <div class="mb"><label>甲方（客戶）名稱</label><input type="text" id="f_name" placeholder="例：王小明 / ○○有限公司"></div>
+      <div class="row mb">
+        <div><label>統一編號 / 身分證字號</label><input type="text" id="f_id"></div>
+        <div><label>代表人 / 負責人</label><input type="text" id="f_rep"></div>
+      </div>
+      <div class="row mb"><div><label>聯絡電話</label><input type="text" id="f_phone"></div></div>
+      <div class="mb"><label>地址</label><input type="text" id="f_addr"></div>
+    </div>
+
+    <div class="field-group">
+      <h2>履約標的（商家檔案）</h2>
+      <div id="storeList"></div>
+      <button id="addStore">＋ 新增商家檔案</button>
+      <div class="total-box">
+        商家檔案數量：<b id="storeCount">0</b> 個　×　每個 NT$36,000<br>
+        合約總金額：<b id="totalAmt">NT$0</b>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <h2>付款方式</h2>
+      <div class="pay-opt"><input type="radio" name="pay" value="cash" id="pay_cash"><label for="pay_cash" style="margin:0;font-weight:500;">現金付款（現場交付辦理人員）</label></div>
+      <div class="pay-opt"><input type="radio" name="pay" value="transfer" id="pay_transfer"><label for="pay_transfer" style="margin:0;font-weight:500;">轉帳匯款</label></div>
+      <div class="pay-opt"><input type="radio" name="pay" value="card" id="pay_card"><label for="pay_card" style="margin:0;font-weight:500;">信用卡刷卡一次付清</label></div>
+    </div>
+
+    <div class="field-group">
+      <h2>簽約日期</h2>
+      <div class="mb"><input type="date" id="f_date"></div>
+    </div>
+
+    <div class="field-group">
+      <h2>簽名</h2>
+      <div class="sig-pad-wrap">
+        <label>甲方（客戶）簽名</label>
+        <canvas class="sig-canvas" id="sigA" height="140"></canvas>
+        <div class="sig-tools"><button onclick="clearSig('sigA')">清除</button></div>
+        <div class="hint">用滑鼠或手指在框內簽名</div>
+      </div>
+      <div class="sig-pad-wrap">
+        <label>乙方（服務提供商）簽名</label>
+        <canvas class="sig-canvas" id="sigB" height="140"></canvas>
+        <div class="sig-tools"><button onclick="clearSig('sigB')">清除</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PREVIEW PANEL ============ -->
+  <div class="preview-wrap">
+    <div id="contract">
+
+      <!-- 標題列 -->
+      <div class="doc-title-bar no-split">
+        <span class="t"><span class="serif">Google</span> 地圖商家關鍵字長期維護服務合約書-V260529.1</span>
+      </div>
+
+      <!-- 主框架（單層表格，列與列之間可乾淨分頁） -->
+      <table class="frame">
+        <colgroup><col style="width:62px"><col style="width:30%"><col></colgroup>
+        <!-- 立約雙方 -->
+        <tr class="no-split">
+          <td class="lbl">立約雙方</td>
+          <td colspan="2" style="padding:8px 10px;">
+            <div class="party-grid">
+              <div class="pcol">
+                <div class="pline">甲方（客戶）：<span class="fill" data-bind="name">　　　　</span></div>
+                <div class="pline">統一編號／身分證字號：<span class="fill" data-bind="id">　　　</span></div>
+                <div class="pline">聯絡電話：<span class="fill" data-bind="phone">　　　</span></div>
+                <div class="pline">地址：<span class="fill" data-bind="addr">　　　　　　</span></div>
+                <div class="pline">代表人／負責人：<span class="fill" data-bind="rep">　　</span></div>
+              </div>
+              <div class="pcol">
+                <div class="pline">乙方（服務提供商）：玖壹玖戶外生活有限公司</div>
+                <div class="pline">統一編號：90474231</div>
+                <div class="pline">聯絡電話：02-66057587</div>
+                <div class="pline">地址：新北市新店區安和里安興路105號5樓之20</div>
+                <div class="pline">代表人／負責人：王宏旭</div>
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        <!-- 服務項目（攤平成 6 類，左側標籤只在第一列、以隱藏內部框線呈現合併效果） -->
+        <tr><td class="lbl svc-lbl">服務項目</td><td class="cat">商家檔案資料健檢與建檔</td><td><ul>
+          <li>商家檔案基本資料整合</li>
+          <li>Google 商家檔案後台完整掃描</li>
+          <li>完整度資料整理</li>
+          <li>商家檔案優化企劃設計</li>
+          <li>建議評論回覆格式</li></ul></td></tr>
+        <tr><td class="lbl svc-lbl"></td><td class="cat">地圖搜尋關鍵字策略</td><td>
+          <div class="svc-intro">4 層目標關鍵字規劃，關鍵字組數依照搜尋動機強度調整</div>
+          <ul>
+          <li>第 1 層 品牌精確搜尋</li>
+          <li>第 2 層 地區／城市＋服務</li>
+          <li>第 3 層 地區／城市＋具體品項/療程</li>
+          <li>第 4 層 服務、產品動機關鍵字</li></ul></td></tr>
+        <tr><td class="lbl svc-lbl"></td><td class="cat">商家檔案內容建置</td><td><ul>
+          <li>依據搜尋成效，以 Google E-E-A-T／GEO 自然排序規範，進行包含但不限於名稱、簡介、營業時間、服務項目、圖片建議等項目設定建置。</li>
+          <li>商家檔案動態貼文-18 篇</li>
+          <li>商家檔案基本 FAQ-10 篇</li></ul></td></tr>
+        <tr><td class="lbl svc-lbl"></td><td class="cat">排名基準與持續追蹤</td><td><ul>
+          <li>共計 4 次「成效報表」，包含關鍵字排名觀測、排名變動熱點圖、完整排名分析與建議。</li></ul></td></tr>
+        <tr><td class="lbl svc-lbl"></td><td class="cat">結案報告</td><td><ul>
+          <li>包含 4 版「成效報表」，協助甲方清楚掌握完整服務曝光成效；以及後續商家檔案建議執行企劃，協助業主持續增加商家檔案效益。</li></ul></td></tr>
+        <tr><td class="lbl svc-lbl"></td><td class="cat">群組服務與諮詢</td><td><ul>
+          <li>專屬 LINE 群組，提供日常維護建議與諮詢回覆。</li>
+          <li>合約期間內，業主可享有不限次數之 Google 商家優化諮詢服務。</li></ul></td></tr>
+
+        <!-- 贈送項目 -->
+        <tr class="no-split">
+          <td class="lbl">贈送項目</td>
+          <td colspan="2">合約履行期間內，乙方依照關鍵字優化需求，主動增加商家動態文章（含文案、圖文編輯）。文案、圖文等產出內容歸甲方所有，乙方得保留成果作為行銷案例展示之權利（不涉及甲方營業機密為前提）。</td>
+        </tr>
+
+        <!-- 專案優惠 -->
+        <tr class="no-split">
+          <td class="lbl">專案優惠</td>
+          <td colspan="2">
+            <p>本方案服務費用為：</p>
+            <p class="price-line">每一 Google 商家檔案　新台幣 36,000 元整</p>
+            <p>本合約履約標的共 <span class="fill" data-bind="count" style="min-width:50px;text-align:center;">0</span> 個商家檔案，合約總金額：<span class="fill" data-bind="total" style="text-align:center;">NT$0</span>。</p>
+          </td>
+        </tr>
+
+        <!-- 履約標的 -->
+        <tr class="no-split">
+          <td class="lbl">履約標的</td>
+          <td colspan="2">
+            <div class="targets" id="docStoreList">
+              <div class="t-item muted">（尚未填寫商家檔案）</div>
+            </div>
+          </td>
+        </tr>
+
+        <!-- 付款方式 -->
+        <tr class="no-split">
+          <td class="lbl">付款方式</td>
+          <td colspan="2" class="pay-doc">
+            <p>一次付清：</p>
+            <p><span class="box" data-pay="cash">　</span>現金付款，並以現場交付辦理人員。</p>
+            <p class="sub">甲乙雙方簽收：</p>
+            <p class="pay-sign sub"><span>甲方（客戶）：__________</span><span>乙方（服務提供商）：__________</span></p>
+            <p><span class="box" data-pay="transfer">　</span>轉帳匯款</p>
+            <p class="sub">戶名：玖壹玖戶外生活有限公司</p>
+            <p class="sub">台灣中小企業銀行 050（新店分行代號 0256）</p>
+            <p class="sub">025-12-128443</p>
+            <p><span class="box" data-pay="card">　</span>信用卡刷卡一次付清</p>
+            <p class="bull">● 6 期（含）內之分期手續費由乙方吸收</p>
+          </td>
+        </tr>
+      </table>
+
+      <!-- ============ 條文 ============ -->
+      <div class="clauses">
+        <h3>第一條｜合約標的</h3>
+        <p>甲方委託乙方提供「Google 地圖商家優化服務」，為甲方經營之 Google 商家檔案（Google Business Profile，前稱 Google My Business，以下簡稱「商家檔案」）提升單一商家檔案在 Google 地圖之自然搜尋曝光、維持商家資訊完整度與搜尋排名穩定性。</p>
+
+        <h3>第二條｜乙方服務內容與範圍</h3>
+        <p><b>一、商家檔案資料健檢與建檔</b></p>
+        <p class="indent">1. 商家檔案基本資料整合：品牌名、地址、營業時間、官網、電話、社群、品牌故事等品牌重點資料確認整理。</p>
+        <p class="indent">2. 商家檔案後台完整掃描：成效分析、評論內容分析、照片分類等，地圖成效關鍵因素盤點。</p>
+        <p class="indent">3. 完整度資料整理：參考業主提供資料、品牌現有其他網路資訊，與商家檔案現有資料交叉比對，找出資料缺漏、錯誤、與品牌不一致的欄位。</p>
+        <p class="indent">4. 商家檔案優化企劃設計：產出商家檔案調整優化之策略方向，包括資料調整、關鍵字布局、動態發文策略及圖片更新建議。</p>
+        <p class="indent">5. 建議評論回覆格式：依評論內容，規劃與設計合適且能促進搜尋曝光的業主評論回覆文字內容。</p>
+        <p><b>二、地圖搜尋關鍵字策略</b>，包含以下 4 層級目標關鍵字規劃：</p>
+        <p class="indent">(1) 第1層 品牌精確搜尋；(2) 第2層 地區／城市＋服務；(3) 第3層 地區／城市＋具體品項/療程；(4) 第4層 服務、產品動機關鍵字。設定關鍵字組數將於策略報告製作階段，依搜尋動機強度調整分配。</p>
+        <p><b>三、商家檔案內容建置</b></p>
+        <p class="indent">乙方於合約時間內，依完成之「執行策略報告」進行商家檔案內容建置（名稱、簡介、營業時間、服務項目、圖片建議），並定期優化搜尋成效；所有優化內容均依 Google E-E-A-T／GEO 自然排序規範進行。動態貼文合約期間共產出 18 篇，分批交付及上架；基本 FAQ 共產出 10 篇，於策略報告製作階段一次性建置完成，並於執行維護期間分批上架。</p>
+        <p><b>四、排名基準與持續追蹤</b></p>
+        <p class="indent">於提交「執行策略報告」並經甲方確認無誤後起算執行維護期間共 90 天。關鍵字排名觀測表：分析每組關鍵字的搜尋結果變化量。排名變動熱點圖：變動量前三名關鍵字升降軌跡圖。成效報表：提供 4 次，以「執行策略報告」內當前「成效報表」為第 1 版，後續於第 30、60 天各製作 1 版，第 4 版（第 90 天）併入「結案報告」。</p>
+        <p><b>五、結案報告</b>：乙方於結案時提供完整「結案報告」，包含第 4 版「成效報表」及前 3 版彙整紀錄，以及後續商家檔案建議執行企劃。</p>
+        <p><b>六、群組服務與諮詢</b>：乙方為甲方建立專屬 LINE 群組，提供日常維護建議與回覆諮詢；合約期間內享有不限次數之商家檔案優化諮詢服務。</p>
+
+        <h3>第三條｜履約期間與起算條件</h3>
+        <p><b>一、履約期間</b>：須同時符合下列全部條件後，乙方始正式啟動服務並起算履約期間：</p>
+        <p class="indent">1. 乙方確認收到全額款項。</p>
+        <p class="indent">2. 甲方完成乙方提供之「商家檔案基本資料蒐集表單」（以下簡稱「基本資料表單」）填寫與相關文件檔案交付。</p>
+        <p class="indent">3. 甲方完成商家檔案後台管理員（Manager）或以上之權限邀請，經乙方接受並確認可正常存取後台功能。</p>
+        <p class="indent">4. 該商家於前述邀請接受時，處於正常啟用狀態，未處於下列任一異常情形：</p>
+        <p class="indent2">(1) 商家檔案尚未完成 Google 驗證（含驗證進行中、待補件、驗證遭拒等狀態）。</p>
+        <p class="indent2">(2) 商家檔案遭 Google 停權，包含軟性停權（Soft Suspend）及硬性停權（Hard Suspend）。</p>
+        <p class="indent2">(3) 商家檔案被 Google 標示為已停用、下架、重複（Duplicate）、合併中或限制顯示。</p>
+        <p class="indent2">(4) 其他經 Google 判定為異常、無法正常編輯或搜尋顯示之狀態。</p>
+        <p class="indent">上述條件未全部滿足前，履約期間暫不起算。甲方應於乙方通知後，依第四條第 2 項第 8 款內容，完成商家檔案建立及排除障礙積極完成補正。</p>
+        <p><b>二、服務時間節點</b></p>
+        <p class="indent">第一階段-策略報告製作：自甲方完成初次資料交付並正式啟動服務後 21 個工作天內完成。</p>
+        <p class="indent">第二階段-執行維護期間：共計 90 天，依「執行策略報告」內容進行內容建置及定期維護、監測追蹤，並提供第 2、3 版「成效報表」。</p>
+        <p class="indent">第三階段-結案交付：於第二階段（90 天）維護完成後 10 工作天內，提交完整「結案報告」。</p>
+        <p><b>三、成效報表提交時間</b>：第 1 版於策略報告製作啟動後 21 個工作天內併於「執行策略報告」提交；第 2、3 版於執行維護第 30、60 天為節點，於次月 10 日前提交（遇假日順延至假日後第一工作天）；第 4 版於結案交付時併於「結案報告」提交。</p>
+        <p><b>四、定期維護</b>：乙方於執行維護期間持續進行優化與定期維護作業。</p>
+
+        <h3>第四條｜雙方責任與配合事項</h3>
+        <p><b>一、甲方責任（客戶）</b></p>
+        <p class="indent">1. 甲方應於收到「基本資料表單」後 5 工作天內完成填寫，並交付乙方所請求之其他初次資料蒐集項目。</p>
+        <p class="indent">2. 維護過程中，甲方應於乙方提出資料需求、確認後 5 工作天內回覆確認或補充；逾期乙方有權順延履約期，或依現有資料操作。</p>
+        <p class="indent">3. 甲方不得擅自變更商家檔案登入權限或刪除乙方已上架之優化內容，若因甲方行為導致成果受影響，乙方不負責任。</p>
+        <p><b>二、乙方責任（服務商）</b></p>
+        <p class="indent">1. 乙方應於確認完款後 3 工作天內，提供「雲端儲存空間連結」、「基本資料表單」及其他資料蒐集所需之表單與指引。</p>
+        <p class="indent">2. 乙方應依 Google 政策與自然排序規範進行優化，並以專業技術執行。</p>
+        <p class="indent">3. 乙方應依履約服務時間節點提供對應「成效報表」，內容包含但不限於曝光量、互動量、關鍵字當前排名狀態。</p>
+        <p class="indent">4. 乙方得以專業技術判斷，依關鍵字競爭度及地區搜尋行為進行策略調整。</p>
+        <p class="indent">5. 使用權與所有權之歸屬，依第七條第 2 項規定辦理。</p>
+        <p class="indent">6. 甲方因店面遷移、行業轉型提出更換履約標的時，乙方得評估新商家檔案是否符合服務範圍；同意者依第五條第 2 項辦理，不同意者依第六條第 1 項第 5 款辦理。</p>
+        <p class="indent">7. 關鍵字排名以無痕瀏覽模式（Google Chrome 無痕視窗）搜尋關鍵字策略中訂定之關鍵字為準。</p>
+        <p class="indent">8. 若甲方商家檔案處於非正常啟用狀態（含驗證、停權、停用等異常），乙方得提供線上技術指導、Google 驗證與申請路徑說明、異常狀態排除建議等線上協助，不另收費。惟下列事項由甲方自行或委託第三方辦理：(1) 實地驗證、現場拍攝、現場操作；(2) 代收代寄實體文件；(3) 需親自到場或出示實體證件之行為；(4) 與主管機關或 Google 客服之代理溝通。上述事項所生費用、時間及結果風險均由甲方承擔。</p>
+        <p class="indent">補充約定彈性：除非雙方於紙本、電子郵件或經確認之通訊軟體訊息另有約定，否則一律依本合約內容為準。</p>
+
+        <h3>第五條｜異動與外部因素處理</h3>
+        <p><b>一、Google 平台政策影響</b></p>
+        <p class="indent">適用情形：若因 Google 系統或政策更新、平台演算法變動、或其他非乙方可控因素（如驗證延遲、伺服器異常、平台封鎖、帳號或商家檔案被停權等），導致排名下降、曝光未達預期或服務暫時中斷，不視為乙方未履約或違約，乙方不負相關賠償責任。</p>
+        <p class="indent">乙方持續義務：前述情形發生時，乙方仍應持續監測並提供必要之調整建議與優化方案。</p>
+        <p class="indent">甲方選擇權：若經雙方評估認定已持續影響成效達 30 天，甲方得擇一：(1) 申請暫停維護期最長 2 個月，乙方於恢復後無償延長等同時數；(2) 申請部分退費，依未履行期間按比例退還（比例同第六條第 3 項）。</p>
+        <p class="indent">回復正常履約：暫停期結束後，雙方以書面或通訊紀錄確認恢復日期，未履行期間自恢復日重新接續起算。</p>
+        <p><b>二、甲方經營異動影響</b></p>
+        <p class="indent">適用情形：甲方因不可抗力或經營異動（遷址、更換行業類別、開設新店面等），得申請將履約標的變更為新商家，由乙方評估是否符合服務範圍。</p>
+        <p class="indent">申請更換履約標的時：(1) 以原契約申請當下之「未履行剩餘款項」，依第六條第 3 項退費比例反推計算抵充新商家服務費用；(2) 抵充後不足差額由甲方補繳；(3) 完成補繳後乙方始啟動新商家優化，期間自啟動日重新起算，原契約剩餘期間不再計入。評估計算時間不列入維護期內。</p>
+
+        <h3>第六條｜解約與退費規範</h3>
+        <p><b>一、解約標準</b>：履行期間如有以下情形得申請解約或終止：</p>
+        <p class="indent">1. 乙方未依履約項目操作、報表提供，且經協商確認未能改善。</p>
+        <p class="indent">2. 因不可抗力，或經乙方評估認定 Google 平台政策變動已致服務無法繼續執行。</p>
+        <p class="indent">3. 因甲方長期未提供必要資料、未回覆乙方需求 20 個工作天以上，或擅自變更／關閉乙方操作權限致無法履約者，乙方得逕行通知終止，且不適用本條第 2、3 項退費規範，已收費用不予退還。</p>
+        <p class="indent">4. 因 Google 平台政策影響，甲方依第五條第 1 項第 3 款 (2) 申請部分退費者。</p>
+        <p class="indent">5. 因甲方經營異動，經乙方評估不適用更換履約標的者，依本條第 3 項退費。</p>
+        <p class="indent">甲方申請解約應以書面或通訊紀錄通知，經雙方確認後生效；乙方依第 3 款行使終止權時，通知送達後生效。</p>
+        <p><b>二、服務尚未啟用前</b>：乙方退回已繳費用之 70%，其餘 30% 作為行政及作業成本。</p>
+        <p><b>三、服務已啟用且執行中</b>：</p>
+        <p class="indent">1. 策略報告製作階段、尚未完成「執行策略報告」交付時申請解約者，依剩餘未履行期間按比例退回 50%。</p>
+        <p class="indent">2. 執行維護階段（90 天）申請解約者，依剩餘未履行期間按比例退回 30%。</p>
+        <p class="indent">3. 結案交付階段、完整結案報告尚未交付時申請解約者，因主要履約內容業已完成，不予退費；乙方仍應依約完成結案報告交付。</p>
+        <p class="indent">上述未履行期間比例依第三條第 2 項「服務時間節點」為基準計算。</p>
+
+        <h3>第七條｜保密與智慧財產權</h3>
+        <p class="indent">1. 雙方應對因合約取得之資訊（營業資料、技術、行銷手法等）保密，不得洩漏予第三人。</p>
+        <p class="indent">2. 文案、圖文及優化成果於甲方付清費用後歸甲方所有；乙方得保留成果作為行銷案例展示之權利（不涉及甲方營業機密為前提）。</p>
+        <p class="indent">3. 甲方不得將乙方操作手法或教材轉交第三方；若用於非法或違反 Google 規範之用途，乙方得立即終止服務且不退費。</p>
+
+        <h3>第八條｜爭議解決與準據法</h3>
+        <p class="indent">1. 本合約以中華民國法律為準據法。</p>
+        <p class="indent">2. 本合約所稱「工作天」指中華民國政府機關上班日，不含週六、週日及國定假日。</p>
+        <p class="indent">3. 本合約所稱「收到」，以一方發送至他方指定之電子郵件、通訊軟體或郵寄地址之送達時間為準。</p>
+        <p class="indent">4. 雙方發生爭議時應先行協商，協商不成時以乙方公司所在地地方法院為第一審管轄法院。</p>
+        <p class="indent">5. 雙方於紙本、電子郵件或通訊軟體訊息所作之補充約定，與本合約具有同等效力。</p>
+      </div>
+
+      <!-- 簽署 -->
+      <div class="sign-wrap">
+        <p class="sh">簽署</p>
+        <div class="sign-area">
+          <div class="sign-block">
+            <div class="sig-img" id="docSigA"></div>
+            <div class="label">甲方（客戶）（簽章）</div>
+          </div>
+          <div class="sign-block">
+            <div class="sig-img" id="docSigB"></div>
+            <div class="label">乙方（服務提供商）（簽章）</div>
+          </div>
+        </div>
+        <p class="date-line">日期：<span class="fill" data-bind="date">　　年　　月　　日</span></p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const PRICE = 36000;
+const storeList = document.getElementById('storeList');
+function addStoreRow(val){
+  val = val || '';
+  const div = document.createElement('div');
+  div.className = 'store-row';
+  const inp = document.createElement('input');
+  inp.type = 'text'; inp.placeholder = '商家檔案名稱 / 店名'; inp.value = val;
+  inp.addEventListener('input', render);
+  const del = document.createElement('button');
+  del.textContent = '✕'; del.title = '刪除';
+  del.addEventListener('click', function(){ div.remove(); render(); });
+  div.appendChild(inp); div.appendChild(del);
+  storeList.appendChild(div);
+  render();
+}
+document.getElementById('addStore').addEventListener('click', function(){ addStoreRow(); });
+function getStores(){
+  var arr = [];
+  storeList.querySelectorAll('input').forEach(function(i){ var v=i.value.trim(); if(v) arr.push(v); });
+  return arr;
+}
+function fmt(n){ return 'NT$' + n.toLocaleString('en-US'); }
+
+function render(){
+  var map = {name:'f_name', id:'f_id', phone:'f_phone', rep:'f_rep', addr:'f_addr'};
+  Object.keys(map).forEach(function(k){
+    var v = document.getElementById(map[k]).value.trim();
+    document.querySelectorAll('[data-bind="'+k+'"]').forEach(function(el){ el.textContent = v || '　　　　'; });
+  });
+  var d = document.getElementById('f_date').value;
+  var dEl = document.querySelector('[data-bind="date"]');
+  if(d){ var parts=d.split('-'); dEl.textContent = '中華民國 '+parts[0]+' 年 '+parseInt(parts[1],10)+' 月 '+parseInt(parts[2],10)+' 日'; }
+  else { dEl.textContent = '　　年　　月　　日'; }
+
+  var stores = getStores();
+  var count = stores.length;
+  document.getElementById('storeCount').textContent = count;
+  document.getElementById('totalAmt').textContent = fmt(count*PRICE);
+  document.querySelector('[data-bind="count"]').textContent = count;
+  document.querySelector('[data-bind="total"]').textContent = fmt(count*PRICE);
+  var docList = document.getElementById('docStoreList');
+  if(count===0){ docList.innerHTML = '<div class="t-item muted">（尚未填寫商家檔案）</div>'; }
+  else{
+    docList.innerHTML = stores.map(function(s){
+      return '<div class="t-item">商家檔案：<span class="fill">'+s+'</span></div>';
+    }).join('');
+  }
+
+  document.querySelectorAll('.pay-doc .box').forEach(function(b){ b.classList.remove('checked'); b.textContent='　'; });
+  var pay = document.querySelector('input[name="pay"]:checked');
+  if(pay){ var b=document.querySelector('.pay-doc .box[data-pay="'+pay.value+'"]'); b.classList.add('checked'); b.textContent='✓'; }
+}
+['f_name','f_id','f_phone','f_rep','f_addr','f_date'].forEach(function(id){
+  document.getElementById(id).addEventListener('input', render);
+});
+document.querySelectorAll('input[name="pay"]').forEach(function(r){ r.addEventListener('change', render); });
+
+/* 簽名板 */
+function setupSig(id){
+  var c = document.getElementById(id);
+  c.width = c.parentElement.clientWidth;
+  var ctx = c.getContext('2d');
+  ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.strokeStyle = '#16213a';
+  var drawing = false, last = null;
+  function pos(e){ var r=c.getBoundingClientRect(); var t=e.touches?e.touches[0]:e; return {x:t.clientX-r.left, y:t.clientY-r.top}; }
+  function start(e){ drawing=true; last=pos(e); e.preventDefault(); }
+  function move(e){ if(!drawing) return; var p=pos(e); ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke(); last=p; e.preventDefault(); syncSig(id); }
+  function end(){ drawing=false; }
+  c.addEventListener('mousedown',start); c.addEventListener('mousemove',move); window.addEventListener('mouseup',end);
+  c.addEventListener('touchstart',start); c.addEventListener('touchmove',move); c.addEventListener('touchend',end);
+  c._isEmpty = true;
+}
+function syncSig(id){
+  var c = document.getElementById(id); c._isEmpty=false;
+  var el = document.getElementById(id==='sigA'?'docSigA':'docSigB');
+  el.innerHTML = '<img src="'+c.toDataURL('image/png')+'">';
+}
+function clearSig(id){
+  var c = document.getElementById(id);
+  c.getContext('2d').clearRect(0,0,c.width,c.height); c._isEmpty=true;
+  document.getElementById(id==='sigA'?'docSigA':'docSigB').innerHTML = '';
+}
+window.addEventListener('load', function(){
+  setupSig('sigA'); setupSig('sigB');
+  addStoreRow();
+  document.getElementById('f_date').value = new Date().toISOString().slice(0,10);
+  render();
+});
+window.addEventListener('resize', function(){
+  ['sigA','sigB'].forEach(function(id){ var c=document.getElementById(id); if(c._isEmpty){ c.width=c.parentElement.clientWidth; } });
+});
+
+/* 匯出：使用瀏覽器原生列印（在印表機選「另存為 PDF」），不會裁切、表格在列間自然分頁 */
+document.getElementById('exportBtn').addEventListener('click', function(){ window.print(); });
+</script>
+</body>
+</html>
