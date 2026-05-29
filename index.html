@@ -6,6 +6,7 @@
 <title>地圖商家優化合約 生成器</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
   :root{ --gold:#b8924a; --ink:#1f2328; --line:#d9d2c4; --bg:#eceae4; --accent:#8a6d2f; }
   *{box-sizing:border-box;}
@@ -114,6 +115,9 @@
   .muted{color:#888;}
   .date-line{text-align:right;margin-top:16px;font-weight:500;}
 
+  /* 下載 PDF 時固定為桌機寬度，手機與電腦輸出一致 */
+  #contract.pdf-mode{width:794px !important;max-width:794px !important;box-shadow:none !important;margin:0 !important;}
+  #contract.pdf-mode .doc-title-bar .t{font-size:19px;}
   /* 分頁保護：小區塊不被拆開 */
   .no-split{page-break-inside:avoid;break-inside:avoid;}
 
@@ -142,8 +146,9 @@
 <div class="topbar no-print">
   <h1>📄 Google地圖商家優化合約 — 客戶資料填寫 / PDF 匯出</h1>
   <div class="btns">
-    <span class="tip">匯出時請在「印表機」選「另存為 PDF」</span>
-    <button class="btn-primary" id="exportBtn">⬇ 匯出 / 列印 PDF</button>
+    <span class="tip">手機請用「下載 PDF」；電腦兩者皆可</span>
+    <button class="btn-primary" id="downloadBtn">📱 下載 PDF（手機 / 電腦皆一致）</button>
+    <button class="btn-ghost" id="exportBtn">🖨 列印 PDF（電腦）</button>
   </div>
 </div>
 
@@ -513,6 +518,28 @@ window.addEventListener('resize', function(){
 
 /* 匯出：使用瀏覽器原生列印（在印表機選「另存為 PDF」），不會裁切、表格在列間自然分頁 */
 document.getElementById('exportBtn').addEventListener('click', function(){ window.print(); });
+
+/* 下載 PDF：用 html2pdf 以固定寬度產生，所有裝置輸出一致、用 avoid-all 避免切到表格列 */
+document.getElementById('downloadBtn').addEventListener('click', function(){
+  var btn=this; var orig=btn.textContent; btn.textContent='產生中…'; btn.disabled=true;
+  var el=document.getElementById('contract');
+  el.classList.add('pdf-mode');
+  var name=(document.getElementById('f_name').value.trim()||'客戶');
+  var opt={
+    margin:[10,8,10,8],
+    filename:'地圖商家優化合約_'+name+'_'+new Date().toISOString().slice(0,10)+'.pdf',
+    image:{type:'jpeg',quality:0.98},
+    html2canvas:{scale:2,useCORS:true,windowWidth:900,width:794,backgroundColor:'#ffffff'},
+    jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
+    pagebreak:{mode:['css','legacy','avoid-all']}
+  };
+  html2pdf().set(opt).from(el).save().then(function(){
+    el.classList.remove('pdf-mode'); btn.textContent=orig; btn.disabled=false;
+  }).catch(function(){
+    el.classList.remove('pdf-mode'); btn.textContent=orig; btn.disabled=false;
+    alert('產生 PDF 失敗，請改用「列印 PDF」。');
+  });
+});
 </script>
 </body>
 </html>
