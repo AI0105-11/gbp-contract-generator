@@ -66,6 +66,7 @@
   .fbox ul{margin:0;padding-left:17px;}
   .fbox li{margin:2px 0;line-height:1.8;}
   .svc-intro{margin:0 0 4px;line-height:1.8;}
+  .note-text{white-space:pre-wrap;min-height:1.4em;}
 
   /* 立約雙方：甲方｜乙方 兩欄並排 */
   .party-grid{display:flex;}
@@ -162,6 +163,11 @@
         商家檔案數量：<b id="storeCount">0</b> 個　×　每個 NT$36,000<br>
         合約總金額：<b id="totalAmt">NT$0</b>
       </div>
+    </div>
+
+    <div class="field-group">
+      <h2>備註</h2>
+      <div class="mb"><textarea id="f_note" rows="3" placeholder="可填寫補充說明、特約事項等（選填）"></textarea></div>
     </div>
 
     <div class="field-group">
@@ -277,6 +283,12 @@
             <div class="t-item muted">（尚未填寫商家檔案）</div>
           </div>
         </td>
+      </tr></table>
+
+      <!-- 備註 -->
+      <table class="fbox"><tr>
+        <td class="fbox-label">備註</td>
+        <td class="fbox-body"><div class="note-text" data-bind="note">　</div></td>
       </tr></table>
 
       <!-- 付款方式 -->
@@ -445,6 +457,9 @@ function render(){
   if(d){ var parts=d.split('-'); dEl.textContent = '中華民國 '+parts[0]+' 年 '+parseInt(parts[1],10)+' 月 '+parseInt(parts[2],10)+' 日'; }
   else { dEl.textContent = '　　年　　月　　日'; }
 
+  var note = document.getElementById('f_note').value;
+  document.querySelector('[data-bind="note"]').textContent = note.replace(/\s+$/,'') ? note : '　';
+
   var stores = getStores();
   var count = stores.length;
   document.getElementById('storeCount').textContent = count;
@@ -463,7 +478,7 @@ function render(){
   var pay = document.querySelector('input[name="pay"]:checked');
   if(pay){ var b=document.querySelector('.pay-doc .box[data-pay="'+pay.value+'"]'); b.classList.add('checked'); b.textContent='✓'; }
 }
-['f_name','f_id','f_phone','f_rep','f_addr','f_date'].forEach(function(id){
+['f_name','f_id','f_phone','f_rep','f_addr','f_date','f_note'].forEach(function(id){
   document.getElementById(id).addEventListener('input', render);
 });
 document.querySelectorAll('input[name="pay"]').forEach(function(r){ r.addEventListener('change', render); });
@@ -504,7 +519,14 @@ window.addEventListener('resize', function(){
 });
 
 /* 匯出：使用瀏覽器原生列印（在印表機選「另存為 PDF」），不會裁切、表格在列間自然分頁 */
-document.getElementById('exportBtn').addEventListener('click', function(){ window.print(); });
+/* 匯出：暫時把網頁標題設為「客戶名_地圖商家優化合約」當作 PDF 預設檔名，列印後還原 */
+var DOC_TITLE = '玖壹玖戶外生活有限公司';
+document.getElementById('exportBtn').addEventListener('click', function(){
+  var name = (document.getElementById('f_name').value.trim() || '客戶').replace(/[\\/:*?"<>|]/g, '');
+  document.title = name + '_地圖商家優化合約';
+  window.print();
+});
+window.addEventListener('afterprint', function(){ document.title = DOC_TITLE; });
 </script>
 </body>
 </html>
